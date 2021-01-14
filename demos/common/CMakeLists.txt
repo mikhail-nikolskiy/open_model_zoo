@@ -18,3 +18,6 @@ source_group("include" FILES ${HEADERS})
 add_library(common STATIC ${HEADERS} ${SOURCES})
 target_include_directories(common PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(common PRIVATE gflags ${InferenceEngine_LIBRARIES} opencv_core opencv_imgcodecs opencv_videoio)
+
+target_link_libraries(common PRIVATE /opt/intel/oneapi/vtune/latest/sdk/lib64/libittnotify.a dl)
+target_include_directories(common PRIVATE /opt/intel/oneapi/vtune/latest/sdk/include)

@@ -28,6 +28,7 @@
 #include <samples/ocv_common.hpp>
 #include <samples/args_helper.hpp>
 #include <samples/slog.hpp>
+#include <samples/itt_tracing.h>
 #include <samples/images_capture.h>
 #include <samples/default_flags.hpp>
 #include <unordered_map>
@@ -81,10 +82,10 @@ DEFINE_string(l, "", custom_cpu_library_message);
 DEFINE_bool(r, false, raw_output_message);
 DEFINE_double(t, 0.5, thresh_output_message);
 DEFINE_double(iou_t, 0.4, iou_thresh_output_message);
-DEFINE_bool(auto_resize, false, input_resizable_message);
-DEFINE_uint32(nireq, 2, num_inf_req_message);
+DEFINE_bool(auto_resize, true, input_resizable_message);
+DEFINE_uint32(nireq, 8, num_inf_req_message);
 DEFINE_uint32(nthreads, 0, num_threads_message);
-DEFINE_string(nstreams, "", num_streams_message);
+DEFINE_string(nstreams, "8", num_streams_message);
 DEFINE_bool(loop, false, loop_message);
 DEFINE_bool(no_show, false, no_show_processed_video);
 DEFINE_string(u, "", utilization_monitors_message);
@@ -97,6 +98,7 @@ static void showUsage() {
     std::cout << std::endl;
     std::cout << "object_detection_demo [OPTION]" << std::endl;
     std::cout << "Options:" << std::endl;
+    std::cout << std::endl;
     std::cout << std::endl;
     std::cout << "    -h                        " << help_message << std::endl;
     std::cout << "    -at \"<type>\"              " << at_message << std::endl;
@@ -232,6 +234,7 @@ int main(int argc, char *argv[]) {
         std::unique_ptr<ResultBase> result;
 
         while (keepRunning) {
+            ITT_TASK("frame loop");
             if (pipeline.isReadyToProcess()) {
                 //--- Capturing frame. If previous frame hasn't been inferred yet, reuse it instead of capturing new one
                 auto startTime = std::chrono::steady_clock::now();
@@ -257,12 +260,13 @@ int main(int argc, char *argv[]) {
             //--- If you need just plain data without rendering - cast result's underlying pointer to DetectionResult*
             //    and use your own processing instead of calling renderDetectionData().
             while ((result = pipeline.getResult()) && keepRunning) {
-                cv::Mat outFrame = renderDetectionData(result->asRef<DetectionResult>());
-                //--- Showing results and device information
-                presenter.drawGraphs(outFrame);
-                metrics.update(result->metaData->asRef<ImageMetaData>().timeStamp,
-                    outFrame, { 10,22 }, 0.65);
-                if (!FLAGS_no_show) {
+                if (FLAGS_no_show) {
+                    metrics.update(result->metaData->asRef<ImageMetaData>().timeStamp);
+                } else {
+                    //--- Showing results and device information
+                    cv::Mat outFrame = renderDetectionData(result->asRef<DetectionResult>());
+                    presenter.drawGraphs(outFrame);
+                    metrics.update(result->metaData->asRef<ImageMetaData>().timeStamp, outFrame, { 10,22 }, 0.65);
                     cv::imshow("Detection Results", outFrame);
                     //--- Processing keyboard events
                     int key = cv::waitKey(1);

@@ -150,6 +150,8 @@ macro(ie_add_sample)
 
     if(UNIX)
         target_link_libraries(${IE_SAMPLE_NAME} PRIVATE pthread)
+        target_link_libraries(${IE_SAMPLE_NAME} PRIVATE /opt/intel/oneapi/vtune/latest/sdk/lib64/libittnotify.a)
+        target_include_directories(${IE_SAMPLE_NAME} PRIVATE /opt/intel/oneapi/vtune/latest/sdk/include)
     endif()
 
     # create global target with all samples / demo apps

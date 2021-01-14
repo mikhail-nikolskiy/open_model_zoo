@@ -15,3 +15,6 @@ source_group("include" FILES ${HEADERS})
 add_library(pipelines STATIC ${SOURCES} ${HEADERS})
 target_include_directories(pipelines PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_link_libraries(pipelines PRIVATE gflags ${InferenceEngine_LIBRARIES} models common opencv_core opencv_imgproc)
+
+target_link_libraries(pipelines PRIVATE /opt/intel/oneapi/vtune/latest/sdk/lib64/libittnotify.a dl)
+target_include_directories(pipelines PRIVATE /opt/intel/oneapi/vtune/latest/sdk/include)

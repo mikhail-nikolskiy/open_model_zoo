@@ -15,6 +15,9 @@ public:
     ImagesCapture(bool loop) : loop{loop} {}
     virtual double fps() const = 0;
     virtual cv::Mat read() = 0;
+    virtual cv::UMat readUMat() {
+        return cv::UMat();
+    }
     virtual ~ImagesCapture() = default;
 };
 

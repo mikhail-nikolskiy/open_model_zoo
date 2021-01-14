@@ -3,7 +3,8 @@
 //
 
 #include "samples/images_capture.h"
-
+#include "samples/blocking_queue.h"
+#include "samples/itt_tracing.h"
 #ifdef _WIN32
 #include "w_dirent.hpp"
 #else
@@ -15,6 +16,9 @@
 #include <stdexcept>
 #include <string>
 #include <memory>
+#include <thread>
+
+__itt_domain *itt_domain;
 
 class InvalidInput {};
 
@@ -106,6 +110,8 @@ class VideoCapWrapper : public ImagesCapture {
     size_t nextImgId;
     const double initialImageId;
     size_t readLengthLimit;
+    blocking_queue<cv::Mat> queue;
+    std::thread thread;
 
 public:
     VideoCapWrapper(const std::string &input, bool loop, size_t initialImageId, size_t readLengthLimit,
@@ -128,17 +134,43 @@ public:
 
         if (cap.open(input)) {
             this->readLengthLimit = readLengthLimit;
+#if 1
+            if (cap.set(cv::CAP_PROP_HW_ACCELERATION, cv::VIDEO_ACCELERATION_ANY)) {
+                printf("VIDEO_ACCELERATION enabled\n");
+            } else {
+                printf("VIDEO_ACCELERATION not enabled\n");
+            }
+#endif
             if (!cap.set(cv::CAP_PROP_POS_FRAMES, this->initialImageId))
                 throw std::runtime_error{"Can't set the frame to begin with"};
+
+            thread = std::thread([=] {
+                for (;;) {
+                    cv::Mat mat = read_one();
+                    queue.push(mat, 5);
+                    if (mat.empty())
+                        break;
+                }
+            });
             return;
         }
 
         throw InvalidInput{};
     }
 
+    ~VideoCapWrapper() {
+        if (thread.joinable())
+            thread.join();
+    }
+
     double fps() const override {return cap.get(cv::CAP_PROP_FPS);}
 
     cv::Mat read() override {
+        ITT_TASK("queue.pop");
+        return queue.pop();
+    }
+
+    cv::Mat read_one() {
         if (nextImgId >= readLengthLimit) {
             if (loop && cap.set(cv::CAP_PROP_POS_FRAMES, initialImageId)) {
                 nextImgId = 1;
@@ -149,6 +181,26 @@ public:
             return cv::Mat{};
         }
         cv::Mat img;
+        if (!cap.read(img) && loop && cap.set(cv::CAP_PROP_POS_FRAMES, initialImageId)) {
+            nextImgId = 1;
+            cap.read(img);
+        } else {
+            ++nextImgId;
+        }
+        return img;
+    }
+
+    cv::UMat readUMat() override {
+        if (nextImgId >= readLengthLimit) {
+            if (loop && cap.set(cv::CAP_PROP_POS_FRAMES, initialImageId)) {
+                nextImgId = 1;
+                cv::UMat img;
+                cap.read(img);
+                return img;
+            }
+            return cv::UMat{};
+        }
+        cv::UMat img;
         if (!cap.read(img) && loop && cap.set(cv::CAP_PROP_POS_FRAMES, initialImageId)) {
             nextImgId = 1;
             cap.read(img);

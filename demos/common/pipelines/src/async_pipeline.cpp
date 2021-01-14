@@ -17,6 +17,7 @@
 #include "pipelines/async_pipeline.h"
 #include <cldnn/cldnn_config.hpp>
 #include <samples/common.hpp>
+#include <samples/itt_tracing.h>
 #include <samples/slog.hpp>
 
 using namespace InferenceEngine;
@@ -73,6 +74,7 @@ AsyncPipeline::~AsyncPipeline() {
 }
 
 void AsyncPipeline::waitForData() {
+    ITT_TASK(__FUNCTION__);
     std::unique_lock<std::mutex> lock(mtx);
 
     condVar.wait(lock, [&] {return callbackException != nullptr ||
@@ -85,6 +87,7 @@ void AsyncPipeline::waitForData() {
 }
 
 int64_t AsyncPipeline::submitData(const InputData& inputData, const std::shared_ptr<MetaData>& metaData){
+    ITT_TASK(__FUNCTION__);
     auto frameID = inputFrameId;
 
     auto request = requestsPool->getIdleRequest();
@@ -132,6 +135,7 @@ int64_t AsyncPipeline::submitData(const InputData& inputData, const std::shared_
 }
 
 std::unique_ptr<ResultBase> AsyncPipeline::getResult() {
+    ITT_TASK(__FUNCTION__);
     auto infResult = AsyncPipeline::getInferenceResult();
     if (infResult.IsEmpty()) {
         return std::unique_ptr<ResultBase>();
